@@ -33,7 +33,8 @@ def index():
     """
     Renders the main page and tells the template if the user is a developer.
     """
-    user_ip = request.remote_addr
+    # THE FIX: This now checks for the correct header on a live server.
+    user_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     is_developer = user_ip in IP_ALLOWLIST
     return render_template("index.html", is_developer=is_developer)
 
@@ -44,9 +45,10 @@ def get_client_key():
     """
     API endpoint for regular clients. One key per IP per day.
     """
-    user_ip = request.remote_addr
+    # THE FIX: This now checks for the correct header on a live server.
+    user_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     today = str(date.today())
-    
+
     # 1. Check if user is banned
     banned_ips = load_json(BANNED_IPS_FILE)
     if user_ip in banned_ips:
@@ -58,17 +60,14 @@ def get_client_key():
     for key_info in all_keys:
         if key_info.get("generated_by_ip") == user_ip and key_info.get("generated_on") == today:
             requests_today += 1
-            # If a key exists, return it
             if "key" in key_info:
-                # Check for ban threshold on repeated requests for an existing key
                 if requests_today >= BAN_THRESHOLD:
                     if user_ip not in banned_ips:
                         banned_ips.append(user_ip)
                         save_json(banned_ips, BANNED_IPS_FILE)
                     return jsonify(error=True, message="Your IP is now banned for excessive requests."), 403
-
                 return jsonify(daily_key=key_info["key"], message="You already have a key for today. Come back tomorrow.")
-    
+
     # 3. If no key generated today, create a new one for the client
     new_key = os.urandom(16).hex()
     key_data = {
@@ -80,7 +79,7 @@ def get_client_key():
     }
     all_keys.append(key_data)
     save_json(all_keys, KEYS_FILE)
-    
+
     return jsonify(daily_key=new_key, message="Here is your new key for today.")
 
 @app.route("/api/generate-developer-key")
@@ -88,13 +87,12 @@ def generate_developer_key():
     """
     API endpoint for developers on the allowlist to generate expiring keys.
     """
-    user_ip = request.remote_addr
-    
-    # Security Check: Only allowlisted IPs can use this
+    # THE FIX: This now checks for the correct header on a live server.
+    user_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+
     if user_ip not in IP_ALLOWLIST:
         return jsonify(error=True, message="Unauthorized access."), 403
 
-    # Get validity period from URL, e.g., ?days=7
     try:
         days = int(request.args.get('days'))
         if days not in [3, 7, 14, 30, 60, 90]:
@@ -102,11 +100,10 @@ def generate_developer_key():
     except (TypeError, ValueError):
         return jsonify(error=True, message="Invalid 'days' parameter. Use 3, 7, 14, 30, 60, or 90."), 400
 
-    # Generate the new key and its metadata
-    new_key = f"dev_{os.urandom(24).hex()}" # Add a "dev_" prefix
+    new_key = f"dev_{os.urandom(24).hex()}"
     today = date.today()
     expires = today + timedelta(days=days)
-    
+
     key_info = {
         "key": new_key,
         "generated_by_ip": user_ip,
