@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Key Generator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;500;700&display=swap');
+
+        :root {
+            --dark-bg: #1a1b26;
+            --panel-bg: #24283b;
+            --primary-accent: #7aa2f7;
+            --text-main: #c0caf5;
+            --text-subtle: #a9b1d6;
+            --border-color: #414868;
+            --error-color: #f7768e;
+            --success-color: #9ece6a;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            background-color: var(--dark-bg);
+            color: var(--text-main);
+            margin: 0;
+        }
+
+        .container {
+            background: var(--panel-bg);
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 600px;
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--text-main);
+            text-align: center;
+            margin-bottom: 25px;
+            font-weight: 700;
+        }
+
+        /* Key Display Area */
+        #key-display-area {
+            background-color: var(--dark-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1.2em;
+            word-wrap: break-word;
+            text-align: center;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        #message-area {
+            text-align: center;
+            margin-top: -10px;
+            margin-bottom: 20px;
+            min-height: 20px;
+            font-weight: 500;
+        }
+        .error { color: var(--error-color); }
+        .success { color: var(--success-color); }
+
+        /* Buttons */
+        button {
+            background-color: var(--primary-accent);
+            color: var(--dark-bg);
+            border: none;
+            padding: 15px 0;
+            font-size: 1em;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            width: 100%;
+        }
+        button:hover {
+            opacity: 0.9;
+            box-shadow: 0 4px 15px rgba(122, 162, 247, 0.2);
+        }
+
+        /* Panels */
+        .panel { display: none; } /* Hide all panels by default */
+        .panel.active { display: block; } /* Show the active panel */
+
+        /* Developer Panel Specifics */
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .options-grid label {
+            background-color: var(--dark-bg);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid var(--border-color);
+            transition: all 0.2s ease-in-out;
+            font-weight: 500;
+        }
+        .options-grid input[type="radio"] {
+            display: none;
+        }
+        .options-grid input[type="radio"]:checked + label {
+            background-color: var(--primary-accent);
+            border-color: var(--primary-accent);
+            color: var(--dark-bg);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="client-panel" class="panel">
+            <h1>API Key Generator</h1>
+            <div id="client-key-display" class="key-display">Click below to get your daily key...</div>
+            <div id="client-message-area" class="message-area"></div>
+            <button id="client-generate-btn">Generate Key</button>
+        </div>
+
+        <div id="developer-panel" class="panel">
+            <h1>Developer Key Console</h1>
+            <p style="text-align:center; margin-top:-15px; color: var(--text-subtle);">Select key validity period:</p>
+            <div class="options-grid">
+                <div><input type="radio" id="d3" name="validity" value="3"><label for="d3">3 Days</label></div>
+                <div><input type="radio" id="d7" name="validity" value="7" checked><label for="d7">7 Days</label></div>
+                <div><input type="radio" id="d14" name="validity" value="14"><label for="d14">14 Days</label></div>
+                <div><input type="radio" id="d30" name="validity" value="30"><label for="d30">30 Days</label></div>
+                <div><input type="radio" id="d60" name="validity" value="60"><label for="d60">60 Days</label></div>
+                <div><input type="radio" id="d90" name="validity" value="90"><label for="d90">90 Days</label></div>
+            </div>
+            <div id="developer-key-display" class="key-display">Select an option and click generate...</div>
+            <div id="developer-message-area" class="message-area"></div>
+            <button id="developer-generate-btn">Generate Secure Key</button>
+        </div>
+    </div>
+
+    <div id="user-status" data-is-developer="{{ is_developer }}"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const userStatus = document.getElementById('user-status');
+            const isDeveloper = userStatus.dataset.isDeveloper === 'True';
+
+            // DOM Elements
+            const clientPanel = document.getElementById('client-panel');
+            const developerPanel = document.getElementById('developer-panel');
+            const clientBtn = document.getElementById('client-generate-btn');
+            const developerBtn = document.getElementById('developer-generate-btn');
+            const clientKeyDisplay = document.getElementById('client-key-display');
+            const developerKeyDisplay = document.getElementById('developer-key-display');
+            const clientMessage = document.getElementById('client-message-area');
+            const developerMessage = document.getElementById('developer-message-area');
+            
+            // Show the correct panel based on developer status
+            if (isDeveloper) {
+                developerPanel.classList.add('active');
+            } else {
+                clientPanel.classList.add('active');
+            }
+
+            // --- Event Listener for Clients ---
+            clientBtn.addEventListener('click', async () => {
+                const response = await fetch('/api/get-client-key');
+                const data = await response.json();
+
+                clientMessage.className = 'message-area'; // Reset class
+                if (data.error) {
+                    clientMessage.textContent = data.message;
+                    clientMessage.classList.add('error');
+                } else {
+                    clientKeyDisplay.textContent = data.daily_key;
+                    clientMessage.textContent = data.message;
+                }
+            });
+
+            // --- Event Listener for Developers ---
+            developerBtn.addEventListener('click', async () => {
+                const selectedOption = document.querySelector('input[name="validity"]:checked');
+                if (!selectedOption) {
+                    developerMessage.textContent = 'Please select a validity period.';
+                    developerMessage.className = 'message-area error';
+                    return;
+                }
+                const days = selectedOption.value;
+                
+                const response = await fetch(`/api/generate-developer-key?days=${days}`);
+                const data = await response.json();
+                
+                developerMessage.className = 'message-area'; // Reset class
+                if (data.error) {
+                    developerMessage.textContent = data.message;
+                    developerMessage.classList.add('error');
+                } else {
+                    developerKeyDisplay.textContent = data.key_info.key;
+                    developerMessage.textContent = `Success! Key created. Expires on: ${data.key_info.expires_on}`;
+                    developerMessage.classList.add('success');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
